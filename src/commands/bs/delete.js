@@ -2,30 +2,36 @@ const {
     Client, 
     Interaction, 
     PermissionFlagsBits,
-    ApplicationCommandOptionType
+    ApplicationCommandOptionType,
+    EmbedBuilder
 } = require('discord.js');
 const Create = require('../../models/Create');
 
 module.exports = {
     name: 'delete',
-    description: 'Deletes a team.',
+    description: 'Deleta um time.',
     options: [
         {
             name: 'team-captain',
-            description: 'The team captain of the team to be deleted (default is you)',
+            description: 'O capitão do time a ser deletado.',
             type: ApplicationCommandOptionType.User,
             required: false,
         },
     ],
     botPermissions: [PermissionFlagsBits.ManageNicknames],
 
+    /**
+     * @param {Client} client
+     * @param {Interaction} interaction
+     */
     callback: async (client, interaction) => {
-        const ADMIN_ROLE_ID = '1295916595360567326'; // replace with your actual admin role ID
+        const ORGANIZADOR_ROLE_ID = '1295916462002802698'; // Organizador role
+        const ADMIN_ROLE_ID = '1295916595360567326'; // Admin role
+        const LOG_CHANNEL_ID = '1296125372533837977'; // logs-admin channel
 
         try {
-            await interaction.deferReply({ flags: 64 });
+            await interaction.deferReply({ ephemeral: true });
 
-            // Target user = optional field or the user themselves
             const targetUser = interaction.options.getUser('team-captain') || interaction.user;
             const targetId = targetUser.id;
 
@@ -33,24 +39,54 @@ module.exports = {
             const team = await Create.findOne({ captainId: targetId });
 
             if (!team) {
-                return interaction.editReply(`❌ No team found under **${targetUser.username}**.`);
+                return interaction.editReply({
+                    content: `Nenhum time encontrado sob o capitão <@${targetUser.id}>.`,
+                    ephemeral: true
+                });
             }
 
             const isCaptain = team.captainId === interaction.user.id;
             const isAdmin = interaction.member.roles.cache.has(ADMIN_ROLE_ID);
+            const isOrganizador = interaction.member.roles.cache.has(ORGANIZADOR_ROLE_ID);
 
-            // Only allow deletion if:
-            // - you are the captain of the team (and target is yourself)
-            // - OR you are an admin (can delete anyone's team)
-            if ((isCaptain && targetId === interaction.user.id) || isAdmin) {
+            // Permission logic:
+            // - Captain can delete their own team
+            // - Admins or Organizadores can delete any team
+            if (isCaptain || isAdmin || isOrganizador) {
                 await Create.deleteOne({ _id: team._id });
-                return interaction.editReply(`✅ Successfully deleted the team **${team.teamName}**!`);
+
+                // Log deletion
+                const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+                if (logChannel) {
+                    const logEmbed = new EmbedBuilder()
+                        .setTitle('Time Deletado')
+                        .setColor(0xff4d4d)
+                        .addFields(
+                            { name: 'Nome', value: team.teamName, inline: true },
+                            { name: 'Capitão', value: `<@${targetUser.id}>`, inline: true },
+                            { name: 'Deletado por', value: `<@${interaction.user.id}>`, inline: true }
+                        )
+                        .setTimestamp();
+
+                    await logChannel.send({ embeds: [logEmbed] });
+                }
+
+                return interaction.editReply({
+                    content: `O time **${team.teamName}** do capitão <@${targetUser.id}> foi deletado com sucesso.`,
+                    ephemeral: true
+                });
             } else {
-                return interaction.editReply(`❌ You don’t have permission to delete this team.`);
+                return interaction.editReply({
+                    content: `Você não tem permissão para deletar este time.`,
+                    ephemeral: true
+                });
             }
         } catch (error) {
             console.error('Delete team error:', error);
-            await interaction.editReply(`❌ An unexpected error occurred: ${error.message}`);
+            await interaction.editReply({
+                content: `Erro: ${error.message}. Contate <@icedragon235>.`,
+                ephemeral: true
+            });
         }
     },
 };

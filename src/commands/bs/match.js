@@ -11,12 +11,12 @@ const {
 const Create = require('../../models/Create');
 
 const mapPool = {
-    'Futebrawl': ['Tiro de meta', 'Superpraia', 'Futebol ensolarado'],
-    'Pique Gemas': ['Mina rochosa', 'Ilumina', 'Arapuca mortal'],
-    'Nocaute': ['Rocha da Belle', 'Caverna do braço dourado', 'Novos horizontes'],
-    'Roubo': ['Pit stop', 'Ravina kabum', 'Batata quente'],
-    'Caça-Estrelas': ['Tocaia', 'Bolo em camadas', 'Estação seca'],
-    'Zona Estratégica': ['Besouros brigões', 'Anel de fogo', 'Aberto'],
+    '<:brawlBall:1427324531516641340> Futebrawl': ['Tiro de meta', 'Superpraia', 'Futebol ensolarado'],
+    '<:gemGrab:1427230813098868736> Pique Gemas': ['Mina rochosa', 'Ilumina', 'Arapuca mortal'],
+    '<:knockout:1427324587712057525> Nocaute': ['Rocha da Belle', 'Caverna do braço dourado', 'Novos horizontes'],
+    '<:heist:1427324592426582207> Roubo': ['Pit stop', 'Ravina kabum', 'Batata quente'],
+    '<:bounty:1427324593969823895> Caça-Estrelas': ['Tocaia', 'Bolo em camadas', 'Estação seca'],
+    '<:hotZone:1427324590262063145> Zona Estratégica': ['Besouros brigões', 'Anel de fogo', 'Aberto'],
 };
 
 const mapImages = {
@@ -72,7 +72,6 @@ module.exports = {
         const ORGANIZADOR_ROLE_ID = '1295916462002802698';
 
         try {
-            // Check if user has Organizador role
             if (!interaction.member.roles.cache.has(ORGANIZADOR_ROLE_ID)) {
                 return interaction.reply({
                     content: 'Você não tem permissão para usar este comando.',
@@ -80,7 +79,8 @@ module.exports = {
                 });
             }
 
-            await interaction.deferReply({ ephemeral: true });
+            // Public defer so followUps aren't forced to ephemeral
+            await interaction.deferReply();
 
             const guild = interaction.guild;
             const captain1 = interaction.options.getUser('team1-captain');
@@ -109,7 +109,7 @@ module.exports = {
             }
 
             if (members1.length === 0 || members2.length === 0) {
-                return interaction.editReply({
+                return interaction.followUp({
                     content: 'Um ou ambos os times não têm membros em <#1426737924438753310>.',
                     ephemeral: true
                 });
@@ -126,7 +126,7 @@ module.exports = {
             const PARTIDAS_CATEGORY_ID = '1426737868205981807';
             const category = guild.channels.cache.get(PARTIDAS_CATEGORY_ID);
             if (!category) {
-                return interaction.editReply({
+                return interaction.followUp({
                     content: 'Categoria "Partidas" não encontrada.',
                     ephemeral: true
                 });
@@ -169,7 +169,7 @@ module.exports = {
             for (const member of members2) await member.voice.setChannel(vc2.id);
 
             const embed = new EmbedBuilder()
-                .setTitle(`CAMPEONATO BRAWL - Set 1`)
+                .setTitle(`<:ranked:1427324585732210748> CAMPEONATO BRAWL - Set 1`)
                 .setDescription('Escolham o mapa e comecem a partida!')
                 .addFields(
                     { name: team1.teamName, value: members1.map(m => `<@${m.id}>`).join('\n'), inline: true },
@@ -190,9 +190,8 @@ module.exports = {
                 )
             );
 
-            // Send public message
+            // PUBLIC embed
             const message = await interaction.followUp({
-                content: null,
                 embeds: [embed],
                 components: [buttons],
                 ephemeral: false
@@ -208,16 +207,20 @@ module.exports = {
                 const roundIndex = parseInt(i.customId.split('_')[1]);
                 const round = matchMaps[roundIndex];
                 const newEmbed = EmbedBuilder.from(embed)
-                    .setTitle(`CAMPEONATO BRAWL - Set ${roundIndex + 1}`)
+                    .setTitle(`<:ranked:1427324585732210748> CAMPEONATO BRAWL - Set ${roundIndex + 1}`)
                     .setImage(mapImages[round.map] || null);
                 await i.update({ embeds: [newEmbed] });
             });
 
-            await interaction.editReply({ content: 'Partida iniciada com sucesso!', ephemeral: true });
+            // private confirmation
+            await interaction.followUp({
+                content: 'Partida iniciada com sucesso!',
+                ephemeral: true
+            });
 
         } catch (error) {
             console.error('Match command error:', error);
-            return interaction.reply({
+            return interaction.followUp({
                 content: `Erro: ${error.message}. Contate <@icedragon235>.`,
                 ephemeral: true
             });
